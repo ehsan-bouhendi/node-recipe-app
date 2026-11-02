@@ -65,6 +65,19 @@ describe('Routes', () => {
     expect(recipe.title).toBe(newRecipe.title);
   });
 
+  test('POST /recipes should reject an empty or whitespace-only title', async () => {
+    for (const title of ['', '   ']) {
+      const response = await request(app)
+        .post('/recipes')
+        .send({ title, ingredients: 'Ingredients', method: 'Method' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Recipe title is required.');
+    }
+
+    expect(await db.get('SELECT * FROM recipes')).toBeUndefined();
+  });
+
   test('DELETE /recipes/:id should delete the recipe and return 404 when requested', async () => {
     const { lastID } = await db.run(
       'INSERT INTO recipes (title, ingredients, method) VALUES (?, ?, ?)',
