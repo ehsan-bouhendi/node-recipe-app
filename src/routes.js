@@ -7,16 +7,31 @@ router.get('/', (req, res) => {
 	res.render('home', { title: 'Recipe App' })
 })
 
-router.get('/recipes', async (req, res) => {
+async function searchRecipes(req, res) {
+	const searchText = req.params.text ?? req.query.search ?? ''
+	if (typeof searchText !== 'string') {
+		return res.sendStatus(400)
+	}
 	const db = await getDbConnection()
-	const recipes = await db.all('SELECT * FROM recipes')
-	res.render('recipes', { recipes })
-})
+	const recipes = searchText
+		? await db.all(
+			'SELECT * FROM recipes WHERE instr(lower(title), lower(?)) > 0 OR instr(lower(ingredients), lower(?)) > 0',
+			[searchText, searchText]
+		)
+		: await db.all('SELECT * FROM recipes')
+	res.render('recipes', { recipes, searchText })
+}
+
+router.get('/recipes', searchRecipes)
+router.search('/recipes/:text', searchRecipes)
 
 router.get('/recipes/:id', async (req, res) => {
 	const db = await getDbConnection()
 	const recipeId = req.params.id
 	const recipe = await db.get('SELECT * FROM recipes WHERE id = ?', [recipeId])
+	if (!recipe) {
+		return res.status(404).render('recipe', { recipe })
+	}
 	res.render('recipe', { recipe })
 })
 
