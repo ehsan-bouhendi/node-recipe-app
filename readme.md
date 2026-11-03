@@ -4,13 +4,17 @@ This is a small, purposefully-incomplete recipe app intended to be used in some 
 
 - Built with Node.js, Express, Handlebars, and Sqlite.
 - Scafholds a database with seed data on first launch.
-- Handles the creation, listing, and editing of recipes.
+- Handles the creation, listing, searching, and editing of recipes.
+
+Use the search form above the recipe list to find recipes by name or ingredients.
+Search matches literal substrings, ignoring case. Clear the input and search again
+to show all recipes. API clients can also send `SEARCH /recipes/:text`, with the
+search text URL-encoded.
 
 Some ideas of what to add:
 
 - A `/recipes/random` endpoint to select a random recipe.
 - A way to delete recipes within the web application.
-- A way to search recipes.
 - Support for multiple units of measurement on recipes. 
 
 ## Requirements

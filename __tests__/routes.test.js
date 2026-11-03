@@ -64,4 +64,77 @@ describe('Routes', () => {
     expect(recipe).toBeDefined();
     expect(recipe.title).toBe(newRecipe.title);
   });
+
+  describe('Recipe search', () => {
+    beforeEach(async () => {
+      await db.run(
+        'INSERT INTO recipes (title, ingredients, method) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)',
+        ['Tomato Soup', 'tomatoes, basil', 'Simmer',
+          'Pasta', 'tomato sauce, noodles', 'Boil',
+          'Cookies', 'flour, sugar', 'Add tomato garnish']
+      );
+    });
+
+    test('SEARCH /recipes/:text matches names and ingredients case-insensitively', async () => {
+      const response = await request(app).search('/recipes/TOMATO');
+
+      expect(response.status).toBe(200);
+      expect(response.body.view).toBe('recipes');
+      expect(response.body.locals.searchText).toBe('TOMATO');
+      expect(response.body.locals.recipes.map(recipe => recipe.title)).toEqual(['Tomato Soup', 'Pasta']);
+    });
+
+    test('GET /recipes supports the search form', async () => {
+      const response = await request(app).get('/recipes').query({ search: 'basil' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.locals.searchText).toBe('basil');
+      expect(response.body.locals.recipes.map(recipe => recipe.title)).toEqual(['Tomato Soup']);
+    });
+
+    test.each(['', undefined])('GET /recipes lists all recipes with search %s', async search => {
+      const response = await request(app).get('/recipes').query(search === undefined ? {} : { search });
+
+      expect(response.status).toBe(200);
+      expect(response.body.locals.recipes).toHaveLength(3);
+    });
+
+    test.each(['missing', "' OR 1=1 --", '%', '_'])('SEARCH treats %s as literal text', async text => {
+      const response = await request(app).search(`/recipes/${encodeURIComponent(text)}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.locals.recipes).toEqual([]);
+    });
+
+    test('SEARCH handles URL-encoded spaces and punctuation', async () => {
+      await db.run('INSERT INTO recipes (title, ingredients) VALUES (?, ?)', ['Chef\'s 100% Soup', 'salt']);
+
+      const response = await request(app).search(`/recipes/${encodeURIComponent("Chef's 100%")}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.locals.recipes.map(recipe => recipe.title)).toEqual(["Chef's 100% Soup"]);
+    });
+
+    test('GET /recipes rejects non-text search values', async () => {
+      const response = await request(app).get('/recipes?search=tomato&search=basil');
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  test('GET /recipes/:id returns 404 after a recipe is deleted', async () => {
+    const recipe = await db.run('INSERT INTO recipes (title, ingredients, method) VALUES (?, ?, ?)',
+      ['Deleted Recipe', 'ingredients', 'method']);
+
+    const existingResponse = await request(app).get(`/recipes/${recipe.lastID}`);
+    expect(existingResponse.status).toBe(200);
+    expect(existingResponse.body.locals.recipe.title).toBe('Deleted Recipe');
+
+    await db.run('DELETE FROM recipes WHERE id = ?', [recipe.lastID]);
+
+    const response = await request(app).get(`/recipes/${recipe.lastID}`);
+    expect(response.status).toBe(404);
+    expect(response.body.view).toBe('recipe');
+    expect(response.body.locals.recipe).toBeUndefined();
+  });
 });

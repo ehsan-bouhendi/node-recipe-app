@@ -210,6 +210,16 @@ main {
 	gap: 1.5rem;
 }
 
+.search-controls {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.search-controls input {
+	flex: 1;
+	min-width: 0;
+}
+
 .recipe-card {
 	background: white;
 	padding: 1.5rem;
